@@ -1,0 +1,74 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*__pycache__/
+*.py[cod]
+*$py.class
+*.python-311.pyc
+
+# Generated results directories
+results/
+test_results/
+comprehensive_results/
+# Dataset files (can be regenerated)
+datasets/*.csv
+
+# NLTK data
+nltk_data/
+
+# Generated plot files
+*.png
+plots/
+
+# Generated CSV files
+*_NB.csv
+pytorch_NB.csv
+Title+Body.csv
+*.csv
+
+# Model saves
+models/
+*.model
+*.pickle
+word2vec_*.model
+
+# Python cache files with version suffixes
+*.python-311.pyc
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Any other temporary files
+*.tmp
+*.log
+.DS_Store
+
+# Testing/coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# BERT model files
+*.bin
+*.safetensors
