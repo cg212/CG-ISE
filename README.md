@@ -1,6 +1,6 @@
 # Bug Report Classification for Deep Learning Frameworks
 
-This project implements and evaluates multiple classification models to detect performance-related bug reports in deep learning frameworks such as TensorFlow, PyTorch, Keras, MXNet, and Caffe.
+This project implements and evaluates multiple classification models to detect performance-related bug reports in deep learning frameworks such as TensorFlow, PyTorch, Keras, and Caffe.
 
 ## Quick Start
 
@@ -23,13 +23,12 @@ This project implements and evaluates multiple classification models to detect p
 - **Key Files** (in `lab1/` directory):
   - Model implementations (baseline_model.py, intermediate_model.py, hybrid_model.py)
   - Evaluation scripts (test_*_model.py)
-  - Comprehensive evaluation framework (evaluation_framework.py)
 
 ## Project Structure
 
 The core implementation is in the `lab1/` directory, with key outputs saved to:
 - `lab1/results/`: Raw evaluation results and summary report
-- `lab1/plots/`: Visualizations comparing model performance
+- `lab1/plots/`: Visualisations comparing model performance
 - `lab1/comprehensive_results/`: Detailed evaluation output by framework
 
 ## For More Information
