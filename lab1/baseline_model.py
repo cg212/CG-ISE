@@ -1,3 +1,7 @@
+# Note - this is the baseline model from lab1, but adapted so that it fits with my test scripts and visualisations.
+# it still uses the same functions and methods as the original baseline model, but has been adapted to fit with the test scripts and visualisations.
+# still uses naive bayes with tf-idf, but has been adapted to fit with the test scripts and visualisations.
+
 """
 Baseline model for bug report classification using Naive Bayes with TF-IDF.
 
@@ -15,34 +19,11 @@ from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as IMBPipeline
 
 class BaselineModel:
-    """
-    A baseline model for bug report classification using Naive Bayes with TF-IDF features.
-    
-    This model uses TF-IDF to convert text into feature vectors and
-    Multinomial Naive Bayes for classification. It also includes
-    options for handling class imbalance through SMOTE.
-    
-    Attributes:
-        max_features (int): Maximum number of features for TF-IDF
-        ngram_range (tuple): N-gram range for TF-IDF (min_n, max_n)
-        alpha (float): Additive (Laplace) smoothing parameter for Naive Bayes
-        use_smote (bool): Whether to use SMOTE for handling class imbalance
-        model (Pipeline): Scikit-learn pipeline containing the TF-IDF vectorizer and NB classifier
-        class_weight (dict or str): Class weights for handling imbalanced datasets
-    """
+
     
     def __init__(self, max_features=5000, ngram_range=(1, 2), alpha=1.0, 
                  use_smote=True, class_weight=None):
-        """
-        Initialize the baseline model with specified parameters.
-        
-        Args:
-            max_features (int): Maximum number of features for TF-IDF
-            ngram_range (tuple): N-gram range for TF-IDF (min_n, max_n)
-            alpha (float): Additive (Laplace) smoothing parameter for Naive Bayes
-            use_smote (bool): Whether to use SMOTE for handling class imbalance
-            class_weight (dict or str): Class weights for handling imbalanced datasets
-        """
+
         self.max_features = max_features
         self.ngram_range = ngram_range
         self.alpha = alpha
@@ -52,12 +33,7 @@ class BaselineModel:
         self.tfidf_vectorizer = None
     
     def build(self):
-        """
-        Build the model pipeline.
-        
-        Returns:
-            self: The BaselineModel instance
-        """
+
         # Create TF-IDF vectorizer
         self.tfidf_vectorizer = TfidfVectorizer(
             max_features=self.max_features,
@@ -247,8 +223,7 @@ class BaselineModel:
         # Get feature names
         feature_names = self.get_feature_names()
         
-        # Get coefficients from the Naive Bayes classifier
-        # For MultinomialNB, the log-probability ratios can be used to assess feature importance
+
         if self.use_smote:
             # If using SMOTE, the classifier is the third step in the pipeline
             coefficients = self.model.named_steps['classifier'].feature_log_prob_
@@ -256,12 +231,11 @@ class BaselineModel:
             # Otherwise, it's the second step
             coefficients = self.model.named_steps['classifier'].feature_log_prob_
         
-        # Calculate the difference between log probabilities for the two classes
-        # This shows how indicative each feature is for performance bugs vs. non-performance bugs
+
         log_prob_diffs = coefficients[1] - coefficients[0]
         
-        # Get the indices of the top features
+
         top_indices = np.argsort(log_prob_diffs)[-top_n:]
         
-        # Return the top features with their importance scores
+
         return [(feature_names[i], log_prob_diffs[i]) for i in top_indices[::-1]]

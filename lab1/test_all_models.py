@@ -1,6 +1,8 @@
 """
-This script evaluates three models (Baseline, Intermediate, and HybridModel)
-on the available deep learning framework datasets, with optimizations for faster execution.
+This script evaluates all three models that I made, the main tool being the hybrid model (Baseline, Intermediate, and HybridModel)
+on all four datasets (tensorflow, pytorch, keras, and caffe). For faster evaluation, only 40% of the data is sampled.
+Just run python test_all_models.py to evaluate all models on all datasets and generate a summary report and visualisations.
+The test should take around 5 minutes to complete.
 """
 
 import os
@@ -17,27 +19,25 @@ from tqdm import tqdm
 
 from preprocessing import TextPreprocessor
 
-# Import models
 from baseline_model import BaselineModel
 from intermediate_model import IntermediateModel
 from hybrid_model import HybridModel
 
-# Configure settings
+
 RESULTS_DIR = 'comprehensive_results'
 DATA_DIR = 'datasets'
 RANDOM_STATE = 42
 TEST_SIZE = 0.3
-SAMPLE_RATIO = 0.4  # Sample 40% of data for faster evaluation
-N_RUNS = 3  # Number of evaluation runs
+SAMPLE_RATIO = 0.4 
+N_RUNS = 3  
 
-# Define the order for models in reports
+
 MODEL_ORDER = ["Baseline", "Intermediate", "HybridModel"]
 
-# Create directories
 os.makedirs(RESULTS_DIR, exist_ok=True)
 os.makedirs(os.path.join(RESULTS_DIR, 'plots'), exist_ok=True)
 
-# Suppress warnings
+
 warnings.filterwarnings('ignore')
 
 
@@ -45,43 +45,43 @@ def load_dataset(framework):
     """Load and preprocess a dataset for a specific framework."""
     print(f"Loading dataset for {framework}...")
     
-    # Construct the file path
+
     file_path = os.path.join(DATA_DIR, f"{framework}.csv")
     
-    # Check if file exists
+
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Dataset file not found: {file_path}")
     
-    # Load the dataset
+
     df = pd.read_csv(file_path)
     
-    # Sample data for faster evaluation
+    #optimisation
     if SAMPLE_RATIO < 1.0:
-        # Sample separately for positive and negative classes
+
         df_pos = df[df['class'] == 1]
         df_neg = df[df['class'] == 0]
         
-        # Calculate sample sizes (minimum of 30 positive examples if possible)
+
         pos_sample_size = max(int(len(df_pos) * SAMPLE_RATIO), min(30, len(df_pos)))
         neg_sample_size = max(int(len(df_neg) * SAMPLE_RATIO), min(100, len(df_neg)))
         
-        # Sample from each class
+
         if len(df_pos) > pos_sample_size:
             df_pos = df_pos.sample(pos_sample_size, random_state=RANDOM_STATE)
         if len(df_neg) > neg_sample_size:
             df_neg = df_neg.sample(neg_sample_size, random_state=RANDOM_STATE)
         
-        # Combine the samples
+
         df = pd.concat([df_pos, df_neg])
     
-    # Create a combined text field from Title and Body
+
     df['text'] = df['Title'].fillna('') + ' ' + df['Body'].fillna('')
     
-    # Extract features and labels
+
     X = df['text'].tolist()
     y = df['class'].astype(int).tolist()
     
-    # Print class distribution
+
     positive_count = sum(y)
     negative_count = len(y) - positive_count
     print(f"Loaded {len(X)} samples with {positive_count} positive ({positive_count/len(y)*100:.1f}%) and {negative_count} negative examples")
@@ -102,53 +102,52 @@ def evaluate_model(model_class, model_name, X_train, y_train, X_test, y_test, ev
     
     if model_name == "HybridModel":
         kwargs.update({
-            'max_features': 5000,  # Reduced from default 10000
-            'ngram_range': (1, 2)  # Reduced from (1, 3)
+            'max_features': 5000, 
+            'ngram_range': (1, 2)  
         })
     
-    # Initialize the model
+
     model = model_class(**kwargs)
     
-    # Track training time
+
     start_time = time.time()
     
-    # Fit the model
+
     if model_name == "Intermediate":
-        # For the intermediate model, we need tokenized text
+
         tokenized_X_train = [text.split() for text in X_train]
         model.fit(tokenized_X_train, y_train)
     else:
-        # For other models
+
         model.fit(X_train, y_train)
     
     training_time = time.time() - start_time
     
-    # Track prediction time
+
     start_time = time.time()
     
-    # Generate predictions
+
     if model_name == "Intermediate":
-        # For the intermediate model, we need tokenized text
+
         tokenized_X_test = [text.split() for text in X_test]
         y_pred = model.predict(tokenized_X_test)
     else:
-        # For other models
+
         y_pred = model.predict(X_test)
     
     prediction_time = time.time() - start_time
-    
-    # Calculate metrics
+
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     
-    # Print evaluation report
+
     print(f"\nClassification Report for {model_name} on {eval_framework}:")
     print(classification_report(y_test, y_pred))
     print(f"Training time: {training_time:.2f} seconds")
     print(f"Prediction time: {prediction_time:.2f} seconds")
     
-    # Return metrics
+
     return {
         'model': model_name,
         'framework': eval_framework,
@@ -167,7 +166,7 @@ def run_evaluation(framework, models_to_evaluate=None):
     
     print(f"Running evaluations for {framework}...")
     
-    # Load and preprocess dataset once
+
     X, y = load_dataset(framework)
     X_processed = preprocess_data(X, framework)
     
@@ -176,16 +175,16 @@ def run_evaluation(framework, models_to_evaluate=None):
     for i in range(N_RUNS):
         print(f"\nRun {i+1}/{N_RUNS}")
         
-        # Use a different random seed for each run
+
         run_seed = RANDOM_STATE + i
         
-        # Split the data
+
         X_train, X_test, y_train, y_test = train_test_split(
             X_processed, y, test_size=TEST_SIZE,
             random_state=run_seed, stratify=y
         )
         
-        # Evaluate each model
+
         if "Baseline" in models_to_evaluate:
             baseline_results = evaluate_model(
                 BaselineModel, "Baseline", X_train, y_train, X_test, y_test, 
@@ -210,37 +209,37 @@ def run_evaluation(framework, models_to_evaluate=None):
             hybrid_results['run'] = i
             all_results.append(hybrid_results)
     
-    # Convert to DataFrame
+
     results_df = pd.DataFrame(all_results)
     
-    # Save results
+
     results_path = os.path.join(RESULTS_DIR, f"{framework}_results.csv")
     results_df.to_csv(results_path, index=False)
     print(f"Results saved to {results_path}")
     
     return results_df
 
-
+# calculating statistics
 def run_statistical_test(results_df, metric='f1_score'):
     """Run statistical tests to compare model performance."""
-    # Group by model and calculate statistics
+
     model_stats = results_df.groupby('model')[metric].agg(['mean', 'std'])
     
-    # Ensure models are in the defined order
+
     model_stats = model_stats.reindex(index=[m for m in MODEL_ORDER if m in model_stats.index])
     
     print(f"\nModel performance statistics for {metric}:")
     print(model_stats)
     
-    # Get the metric values for each model
+
     models = results_df['model'].unique()
     model_metrics = {model: results_df[results_df['model'] == model][metric].values 
                      for model in models}
     
-    # Run statistical tests
+
     test_results = {}
     
-    # Perform Mann-Whitney U test (non-parametric) between baseline and each other model
+    # Mann-Whitney U tests against baseline
     if 'Baseline' in models:
         baseline_metric = model_metrics['Baseline']
         
@@ -248,7 +247,7 @@ def run_statistical_test(results_df, metric='f1_score'):
             model_metric = model_metrics[model]
             stat, p_value = stats.mannwhitneyu(model_metric, baseline_metric, alternative='two-sided')
             
-            # Calculate effect size (r = Z / sqrt(N))
+
             n1, n2 = len(model_metric), len(baseline_metric)
             z = stat
             r = z / np.sqrt(n1 + n2)
@@ -260,7 +259,7 @@ def run_statistical_test(results_df, metric='f1_score'):
                 'significant': p_value < 0.05
             }
             
-            # Print results
+
             print(f"\nMann-Whitney U test: Baseline vs {model}")
             print(f"U statistic: {stat}")
             print(f"P-value: {p_value:.5f}")
@@ -270,41 +269,60 @@ def run_statistical_test(results_df, metric='f1_score'):
     return test_results
 
 
-def plot_results(results_df, framework):
-    """Create visualizations of the evaluation results."""
-    # Create plots directory if it doesn't exist
+def plot_single_metric(results_df, framework, metric, title, ylabel, filename, palette='viridis'):
+    """Plot a single metric for all models on a specific framework."""
     plots_dir = os.path.join(RESULTS_DIR, 'plots')
     os.makedirs(plots_dir, exist_ok=True)
     
-    # Ensure model order is consistent
-    # Create a categorical type with our custom ordering
+
     cat_type = pd.CategoricalDtype(categories=MODEL_ORDER, ordered=True)
     results_df['model'] = results_df['model'].astype(cat_type)
     results_df = results_df.sort_values('model')
     
-    # Plot F1 Score
     plt.figure(figsize=(12, 6))
-    sns.barplot(x='model', y='f1_score', data=results_df, palette='viridis')
-    plt.title(f"F1 Score Comparison for {framework}")
+    sns.barplot(x='model', y=metric, data=results_df, palette=palette)
+    plt.title(title)
     plt.xlabel('Model')
-    plt.ylabel('F1 Score')
+    plt.ylabel(ylabel)
     plt.grid(True, linestyle='--', alpha=0.6)
-    plt.savefig(os.path.join(plots_dir, f"{framework}_f1_score.png"), dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(plots_dir, filename), dpi=300, bbox_inches='tight')
     plt.close()
+
+# plotting results
+def plot_results(results_df, framework):
+    """Create visualizations of the evaluation results."""
+    # f1-score plots
+    plot_single_metric(
+        results_df, framework, 
+        metric='f1_score', 
+        title=f"F1 Score Comparison for {framework}",
+        ylabel='F1 Score',
+        filename=f"{framework}_f1_score.png", 
+        palette='viridis'
+    )
     
-    # Plot Precision and Recall
-    plt.figure(figsize=(12, 6))
-    sns.barplot(x='model', y='precision', data=results_df, palette='Blues_d', label='Precision')
-    sns.barplot(x='model', y='recall', data=results_df, palette='Reds_d', label='Recall', alpha=0.7)
-    plt.title(f"Precision and Recall Comparison for {framework}")
-    plt.xlabel('Model')
-    plt.ylabel('Score')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.6)
-    plt.savefig(os.path.join(plots_dir, f"{framework}_precision_recall.png"), dpi=300, bbox_inches='tight')
-    plt.close()
+    # precision plots
+    plot_single_metric(
+        results_df, framework, 
+        metric='precision', 
+        title=f"Precision Comparison for {framework}",
+        ylabel='Precision',
+        filename=f"{framework}_precision.png", 
+        palette='Blues_d'
+    )
     
-    # Plot Training Time (log scale)
+    # recall plots
+    plot_single_metric(
+        results_df, framework, 
+        metric='recall', 
+        title=f"Recall Comparison for {framework}",
+        ylabel='Recall',
+        filename=f"{framework}_recall.png", 
+        palette='Reds_d'
+    )
+    
+    # training time plots
+    plots_dir = os.path.join(RESULTS_DIR, 'plots')
     plt.figure(figsize=(12, 6))
     plt.yscale('log')
     sns.barplot(x='model', y='training_time', data=results_df, palette='YlOrBr')
@@ -315,22 +333,22 @@ def plot_results(results_df, framework):
     plt.savefig(os.path.join(plots_dir, f"{framework}_training_time.png"), dpi=300, bbox_inches='tight')
     plt.close()
 
-
+# creating summary report
 def create_summary_report(all_results):
     """Create a summary report of all evaluation results."""
-    # Check if results are empty
+
     if not all_results:
         print("Cannot create summary report: No results available")
         return ""
     
-    # Combine all results
+
     all_results_df = pd.concat(all_results.values())
     
-    # Ensure model order is consistent by creating a categorical type
+
     cat_type = pd.CategoricalDtype(categories=MODEL_ORDER, ordered=True)
     all_results_df['model'] = all_results_df['model'].astype(cat_type)
     
-    # Calculate mean metrics by model and framework
+    # calculating mean metrics by model and framework
     summary = all_results_df.groupby(['framework', 'model']).agg({
         'precision': ['mean', 'std'],
         'recall': ['mean', 'std'],
@@ -398,7 +416,6 @@ def create_summary_report(all_results):
         
         report += f"| {model} | {precision} | {recall} | {f1} | {train_time} | {pred_time} |\n"
     
-    # Save the report
     report_path = os.path.join(RESULTS_DIR, "evaluation_summary.md")
     with open(report_path, 'w') as f:
         f.write(report)
@@ -408,15 +425,30 @@ def create_summary_report(all_results):
     return report
 
 
+def plot_cross_framework_metric(all_results_df, metric, title, ylabel, filename, palette='viridis'):
+    """Plot a metric comparison across all frameworks."""
+    plots_dir = os.path.join(RESULTS_DIR, 'plots')
+    plt.figure(figsize=(14, 8))
+    sns.barplot(x='framework', y=metric, hue='model', data=all_results_df, 
+                palette=palette, hue_order=MODEL_ORDER)
+    plt.title(title)
+    plt.xlabel('Framework')
+    plt.ylabel(ylabel)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend(title='Model', loc='lower right')
+    plt.savefig(os.path.join(plots_dir, filename), dpi=300, bbox_inches='tight')
+    plt.close()
+
+
 def main():
     """Main function to run comprehensive evaluation."""
-    # List of frameworks to evaluate
+
     frameworks = ['tensorflow', 'pytorch', 'keras', 'caffe']
     
-    # Dictionary to store results for each framework
+
     all_framework_results = {}
     
-    # Check which frameworks have data available
+
     available_frameworks = []
     for fw in frameworks:
         file_path = os.path.join(DATA_DIR, f"{fw}.csv")
@@ -425,21 +457,21 @@ def main():
         else:
             print(f"Warning: Dataset for {fw} not found at {file_path}")
     
-    # For each available framework
+
     for framework in available_frameworks:
         try:
             print(f"\n{'='*60}\nEvaluating {framework.upper()} dataset\n{'='*60}")
             
-            # Run evaluation and get results
+
             results_df = run_evaluation(framework)
             
-            # Run statistical tests
+
             run_statistical_test(results_df, 'f1_score')
             
-            # Create visualizations
+
             plot_results(results_df, framework)
             
-            # Store results
+
             all_framework_results[framework] = results_df
             
         except Exception as e:
@@ -447,28 +479,47 @@ def main():
             import traceback
             traceback.print_exc()
     
-    # Generate summary report
+    # generating the summary report
     create_summary_report(all_framework_results)
     
-    # Create combined performance plot across all frameworks
+    # plotting for all frameworks and models
     if all_framework_results:
         all_results_df = pd.concat(all_framework_results.values())
         
-        # Ensure model order is consistent
+
         cat_type = pd.CategoricalDtype(categories=MODEL_ORDER, ordered=True)
         all_results_df['model'] = all_results_df['model'].astype(cat_type)
         all_results_df = all_results_df.sort_values('model')
         
-        # Plot overall F1 scores by model and framework
-        plt.figure(figsize=(14, 8))
-        sns.barplot(x='framework', y='f1_score', hue='model', data=all_results_df, palette='viridis', hue_order=MODEL_ORDER)
-        plt.title("F1 Score Comparison Across Frameworks")
-        plt.xlabel('Framework')
-        plt.ylabel('F1 Score')
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.legend(title='Model', loc='lower right')
-        plt.savefig(os.path.join(RESULTS_DIR, 'plots', "all_frameworks_f1_comparison.png"), dpi=300, bbox_inches='tight')
-        plt.close()
+        # plotting F1 Score comparison across frameworks
+        plot_cross_framework_metric(
+            all_results_df, 
+            metric='f1_score', 
+            title="F1 Score Comparison Across Frameworks",
+            ylabel='F1 Score',
+            filename="all_frameworks_f1_comparison.png",
+            palette='viridis'
+        )
+        
+        # plotting precision comparison across frameworks
+        plot_cross_framework_metric(
+            all_results_df, 
+            metric='precision', 
+            title="Precision Comparison Across Frameworks",
+            ylabel='Precision',
+            filename="all_frameworks_precision_comparison.png",
+            palette='Blues_d'
+        )
+        
+        # plotting recall comparison across frameworks
+        plot_cross_framework_metric(
+            all_results_df, 
+            metric='recall', 
+            title="Recall Comparison Across Frameworks",
+            ylabel='Recall',
+            filename="all_frameworks_recall_comparison.png",
+            palette='Reds_d'
+        )
         
         print(f"Evaluation complete! Results saved to {RESULTS_DIR} directory.")
 

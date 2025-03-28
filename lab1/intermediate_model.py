@@ -1,4 +1,4 @@
-"""Intermediate model for bug report classification using SVM with Word2Vec."""
+"""my intermediate model for bug report classification using SVM with Word2Vec."""
 
 import numpy as np
 from sklearn.svm import SVC
@@ -10,7 +10,7 @@ import joblib
 import os
 
 class MeanEmbeddingVectorizer(BaseEstimator, TransformerMixin):
-    """Transforms tokenized texts into mean word vectors."""
+
     
     def __init__(self, word2vec_model):
         self.word2vec_model = word2vec_model
@@ -48,14 +48,14 @@ class IntermediateModel:
         self.model = None
     
     def train_word2vec(self, tokenized_texts, save_path=None):
-        """Train a Word2Vec model on the tokenized texts."""
+
         self.word2vec_model = Word2Vec(
             sentences=tokenized_texts,
             vector_size=self.vector_size,
             window=self.window,
             min_count=self.min_count,
             workers=self.workers,
-            sg=1  # Skip-gram model
+            sg=1  
         )
         
         self.vectorizer = MeanEmbeddingVectorizer(self.word2vec_model)
@@ -67,14 +67,14 @@ class IntermediateModel:
         return self
     
     def load_word2vec(self, model_path):
-        """Load a pre-trained Word2Vec model."""
+
         self.word2vec_model = Word2Vec.load(model_path)
         self.vector_size = self.word2vec_model.wv.vector_size
         self.vectorizer = MeanEmbeddingVectorizer(self.word2vec_model)
         return self
     
     def build(self):
-        """Build the model pipeline."""
+
         svm_classifier = SVC(
             C=self.C, kernel=self.kernel, gamma=self.gamma,
             probability=True, class_weight=self.class_weight, random_state=42
@@ -88,7 +88,7 @@ class IntermediateModel:
         return self
     
     def optimize_hyperparameters(self, X_transformed, y_train, cv=5):
-        """Optimize SVM hyperparameters using grid search."""
+
         from sklearn.model_selection import GridSearchCV
         
         if self.use_smote:
@@ -119,13 +119,13 @@ class IntermediateModel:
         return self.build()
     
     def transform_text(self, tokenized_texts):
-        """Transform tokenized texts into feature vectors."""
+
         if self.vectorizer is None:
             raise ValueError("Word2Vec model has not been trained or loaded yet.")
         return self.vectorizer.transform(tokenized_texts)
     
     def fit(self, tokenized_texts, y_train, train_word2vec=True, word2vec_path=None):
-        """Fit the model to the training data."""
+
         # Train or load Word2Vec
         if train_word2vec:
             self.train_word2vec(tokenized_texts, save_path=word2vec_path)
@@ -144,19 +144,19 @@ class IntermediateModel:
         return self
     
     def predict(self, tokenized_texts):
-        """Predict class labels."""
+
         if self.model is None:
             raise ValueError("Model has not been trained yet. Call fit() first.")
         return self.model.predict(self.transform_text(tokenized_texts))
     
     def predict_proba(self, tokenized_texts):
-        """Predict class probabilities."""
+
         if self.model is None:
             raise ValueError("Model has not been trained yet. Call fit() first.")
         return self.model.predict_proba(self.transform_text(tokenized_texts))
     
     def evaluate(self, tokenized_texts, y_test):
-        """Evaluate the model on test data."""
+
         from sklearn.metrics import precision_score, recall_score, f1_score
         
         y_pred = self.predict(tokenized_texts)
@@ -167,7 +167,7 @@ class IntermediateModel:
         }
     
     def save_model(self, model_path, word2vec_path=None):
-        """Save the trained model."""
+
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
         joblib.dump(self.model, model_path)
         
@@ -176,7 +176,7 @@ class IntermediateModel:
             self.word2vec_model.save(word2vec_path)
     
     def load_model(self, model_path, word2vec_path=None):
-        """Load a trained model."""
+
         if word2vec_path:
             self.load_word2vec(word2vec_path)
         

@@ -1,4 +1,4 @@
-"""Test script for baseline and intermediate models."""
+"""This is a test script for comparing my intermediate model against the baseline model, with the framework of your choosing."""
 
 import pandas as pd
 import numpy as np
@@ -12,7 +12,7 @@ import os
 from baseline_model import BaselineModel
 from intermediate_model import IntermediateModel
 
-# Simple preprocessing functions
+
 def preprocess_text(text):
     """Simple text preprocessing."""
     if not isinstance(text, str):
@@ -30,19 +30,19 @@ def load_data(dataset_name, sample_size=None):
     
     df = pd.read_csv(file_path)
     
-    # Determine label column
+
     label_col = 'class' if 'class' in df.columns else 'related'
     
-    # Create combined text
+
     df['text'] = df['Title'].fillna('') + ' ' + df['Body'].fillna('')
     
-    # Convert labels to integers if needed
+
     unique_labels = df[label_col].unique()
     if not all(isinstance(label, (int, np.integer)) for label in unique_labels):
         label_mapping = {val: i for i, val in enumerate(sorted(unique_labels))}
         df[label_col] = df[label_col].map(label_mapping)
     
-    # Sample if specified
+
     if sample_size and sample_size < len(df):
         pos_df = df[df[label_col] == 1]
         neg_df = df[df[label_col] == 0]
@@ -55,7 +55,7 @@ def load_data(dataset_name, sample_size=None):
             neg_df.sample(neg_sample, random_state=42)
         ])
     
-    # Extract features and labels
+
     X = df['text'].tolist()
     y = df[label_col].astype(int).tolist()
     
@@ -73,20 +73,20 @@ def main():
     args = parser.parse_args()
     warnings.filterwarnings('ignore')
     
-    # Load and prepare data
+
     X, y = load_data(args.framework, sample_size=args.sample_size)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42, stratify=y
     )
     
-    # Print dataset info
+
     print(f"\nFramework: {args.framework}, Training: {len(X_train)}, Test: {len(X_test)}")
     
-    # Process text
+
     X_train_processed = [preprocess_text(text) for text in X_train]
     X_test_processed = [preprocess_text(text) for text in X_test]
     
-    # Tokenize for intermediate model
+
     X_train_tokens = [tokenize_text(text) for text in X_train_processed]
     X_test_tokens = [tokenize_text(text) for text in X_test_processed]
     

@@ -1,3 +1,8 @@
+# This is my hybrid mode, the main tool that I am using to be measured against the baseline model.
+# I arrived at this with iteration, first with the intermediate model, and then with the hybrid model.
+# My hybrid model is a combination of the intermediate model and the baseline model, with the addition of the ensemble model.
+
+
 """HybridModel for performance-related bug report classification."""
 
 import numpy as np
@@ -34,11 +39,10 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         self.voting_weights = voting_weights
         self.classification_threshold = classification_threshold
         
-        # Model components
         self.tfidf_vectorizer = self.tfidf_classifier = self.meta_model = None
         self.pattern_model = self.recall_optimizer = self.ensemble_model = self.meta_scaler = None
         
-        # Load spaCy model
+        # spaCy model
         try:
             self.nlp = spacy.load("en_core_web_sm")
         except OSError:
@@ -49,7 +53,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         self._init_framework_resources()
     
     def _init_framework_resources(self):
-        # Common performance terms across all frameworks
+        # performance terms that are present across all the frameworks
         self.common_perf_terms = {
             'slow', 'fast', 'speed', 'performance', 'latency', 'throughput', 'memory',
             'leak', 'efficient', 'inefficient', 'bottleneck', 'overhead', 'optimization',
@@ -60,7 +64,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
             'computing', 'acceleration', 'accelerated', 'accelerate', 'inference'
         }
         
-        # Framework-specific performance terms
+        # performance terms that are specific to each framework
         framework_terms = {
             'tensorflow': {'xla', 'tpu', 'eager', 'graph', 'session', 'tensorrt', 'distribute', 
                 'distribution', 'parallel', 'tf.function', 'autograph', 'trace', 'jit', 
@@ -78,12 +82,12 @@ class HybridModel(BaseEstimator, ClassifierMixin):
                 'allocate', 'prefetch', 'batch', 'multi', 'thread'}
         }
         
-        # Combine common and framework-specific terms
+        # combining common and framework-specific terms
         self.perf_terms = self.common_perf_terms.copy()
         if self.framework in framework_terms:
             self.perf_terms.update(framework_terms[self.framework])
         
-        # Performance-related regex patterns
+        # regex patterns
         self.perf_patterns = [
             r'takes?( too)? (long|much) time', r'slow(er|ly)?', r'(high|excessive) latency',
             r'(fast|faster|quickly|quick)', r'(execution|run|running) time',
@@ -99,7 +103,6 @@ class HybridModel(BaseEstimator, ClassifierMixin):
             r'resource (usage|consumption)', r'freezes?', r'unresponsive(ness)?'
         ]
         
-        # Add framework-specific patterns
         if self.framework == 'tensorflow':
             self.perf_patterns.extend([r'(eager|graph) mode', r'xla compilation', r'tf\.function',
                 r'session runtime', r'out of memory error', r'resource exhausted'])
@@ -109,10 +112,8 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         elif self.framework == 'keras':
             self.perf_patterns.extend([r'steps? per second', r'epoch time', r'training time'])
         
-        # Compile patterns
         self.compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.perf_patterns]
         
-        # Code patterns
         self.code_patterns = {
             'markdown_block': re.compile(r'```[\s\S]*?```'),
             'inline_code': re.compile(r'`.*?`'),
@@ -124,7 +125,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         if not isinstance(text, str) or not text:
             return []
         
-        # Extract and save code blocks
+
         code_blocks = []
         for pattern in self.code_patterns.values():
             matches = pattern.findall(text)
@@ -132,22 +133,21 @@ class HybridModel(BaseEstimator, ClassifierMixin):
                 code_blocks.append(match)
                 text = text.replace(match, f" __CODE_BLOCK_{len(code_blocks)}__ ")
         
-        # Process with spaCy
         doc = self.nlp(text)
         
-        # Extract tokens
+
         tokens = []
         for token in doc:
             if token.is_punct or len(token.text) < 2: 
                 continue
             
-            # Weight performance terms higher
+
             if token.text.lower() in self.perf_terms:
                 tokens.extend([token.lemma_.lower()] * int(self.perf_terms_weight))
             elif not token.is_stop:
                 tokens.append(token.lemma_.lower())
         
-        # Process code blocks if enabled
+
         if self.use_code_features and code_blocks:
             for block in code_blocks:
                 code_tokens = self._extract_code_tokens(block)
@@ -156,23 +156,23 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         return tokens
     
     def _extract_code_tokens(self, code_block):
-        # Remove code block markers
+
         code = re.sub(r'```.*?\n|```|`|<code>|</code>', '', code_block)
         
-        # Extract useful elements
+
         methods = [m.rstrip('(') for m in re.findall(r'\b\w+\s*\(', code)]
         variables = [v.rstrip('=').strip() for v in re.findall(r'\b\w+\s*=', code)]
         api_refs = re.findall(r'\b\w+\.\w+', code)
         imports = re.findall(r'import\s+(\w+)', code) + re.findall(r'from\s+(\w+)', code)
         
-        # Performance keywords
+
         perf_code_keywords = ['cuda', 'gpu', 'cpu', 'device', 'memory', 'profile', 
                            'benchmark', 'time', 'optimize', 'performance',
                            'latency', 'throughput', 'duration', 'oom', 'leak']
         
         perf_words = [word for word in code.split() if word.lower() in perf_code_keywords]
         
-        # Combine and filter
+
         code_tokens = methods + variables + api_refs + imports + perf_words
         return [token.lower() for token in code_tokens if len(token) > 1]
     
@@ -182,11 +182,11 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         
         features = {}
         
-        # Count pattern matches
+
         for i, pattern in enumerate(self.compiled_patterns):
             features[f'pattern_{i}'] = min(len(pattern.findall(text)), 3)
         
-        # Count performance terms
+
         perf_term_count = sum(len(re.findall(r'\b' + re.escape(term) + r'\b', text.lower())) 
                               for term in self.perf_terms)
         
@@ -202,11 +202,11 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         features = {}
         words = text.split()
         
-        # Basic length features
+
         features['text_length'] = len(text)
         features['word_count'] = len(words)
         
-        # Code-related features
+
         if self.use_code_features:
             code_blocks = self.code_patterns['markdown_block'].findall(text)
             inline_codes = self.code_patterns['inline_code'].findall(text)
@@ -219,29 +219,29 @@ class HybridModel(BaseEstimator, ClassifierMixin):
             code_text = ''.join(code_blocks + inline_codes + stack_traces)
             features['code_ratio'] = len(code_text) / (len(text) + 1)
         
-        # Misc features
+
         features['question_mark_count'] = text.count('?')
         features['exclamation_mark_count'] = text.count('!')
         
-        # Sentence complexity
+
         sentences = text.split('.')
         features['avg_sentence_length'] = np.mean([len(s.split()) for s in sentences if s.strip()]) if len(sentences) > 1 else len(words)
         
-        # Capitalization
+
         uppercase_words = sum(1 for word in words if word.isupper() and len(word) > 1)
         features['uppercase_ratio'] = uppercase_words / (len(words) + 1)
         
         return features
     
     def fit(self, X, y):
-        # Validation
+
         if len(X) != len(y):
             raise ValueError("X and y must have the same length")
         
         X = [x if isinstance(x, str) else str(x) for x in X]
         pos_count = sum(y)
         
-        # Create TF-IDF vectorizer
+        # TF-IDF vectorizer
         self.tfidf_vectorizer = TfidfVectorizer(
             tokenizer=self._custom_tokenizer,
             max_features=self.max_features,
@@ -251,7 +251,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         X_tfidf = self.tfidf_vectorizer.fit_transform(X)
         self.tfidf_classifier = MultinomialNB(class_prior=[0.4, 0.6])
         
-        # Extract meta and pattern features
+        # extracting meta and pattern features
         meta_features = None
         pattern_features = None
         
@@ -267,7 +267,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
             if pattern_features.size > 0:
                 self.pattern_model = SVC(probability=True, class_weight={0: 1, 1: 2}, random_state=42)
         
-        # Train models with SMOTE if enabled
+        # training the models with SMOTE
         if self.smote_sampling:
             # TF-IDF model
             X_tfidf_array = X_tfidf.toarray() if issparse(X_tfidf) else X_tfidf
@@ -290,7 +290,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
             if self.use_pattern_features and pattern_features is not None and pattern_features.size > 0:
                 self.pattern_model.fit(pattern_features, y)
         
-        # Prepare ensemble feature array
+
         feature_arrays = [X_tfidf.toarray() if issparse(X_tfidf) else X_tfidf]
         if self.use_meta_features and meta_features is not None and meta_features.size > 0:
             feature_arrays.append(meta_features)
@@ -299,7 +299,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         
         X_ensemble = np.hstack(feature_arrays) if len(feature_arrays) > 1 else feature_arrays[0]
         
-        # Create ensemble model
+        # creating the ensemble model
         estimators = [
             ('lr_tfidf', LogisticRegression(max_iter=1000, class_weight={0: 1, 1: 1.5}, random_state=42)),
             ('rf', RandomForestClassifier(n_estimators=100, class_weight={0: 1, 1: 1.5}, random_state=42)),
@@ -313,7 +313,7 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         
         self.ensemble_model = VotingClassifier(estimators=estimators, voting='soft', weights=weights)
         
-        # Train ensemble
+        # training the ensemble model
         if self.smote_sampling:
             X_ensemble_resampled, y_ensemble_resampled = SMOTE(random_state=42).fit_resample(X_ensemble, y)
             self.ensemble_model.fit(X_ensemble_resampled, y_ensemble_resampled)
@@ -336,7 +336,6 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         X = [x if isinstance(x, str) else str(x) for x in X]
         X_tfidf = self.tfidf_vectorizer.transform(X)
         
-        # Prepare feature arrays
         feature_arrays = [X_tfidf.toarray() if issparse(X_tfidf) else X_tfidf]
         
         if self.use_meta_features and hasattr(self, 'meta_scaler'):
@@ -367,13 +366,12 @@ class HybridModel(BaseEstimator, ClassifierMixin):
         
         feature_names = self.tfidf_vectorizer.get_feature_names_out()
         
-        # For MultinomialNB, log probability ratios show feature importance
         if isinstance(self.tfidf_classifier, MultinomialNB):
             feature_importances = self.tfidf_classifier.feature_log_prob_[1] - self.tfidf_classifier.feature_log_prob_[0]
             top_indices = np.argsort(feature_importances)[-n:]
             return [(feature_names[i], feature_importances[i]) for i in top_indices[::-1]]
         
-        # For other classifiers with coef_ attribute
+
         elif hasattr(self.tfidf_classifier, 'coef_'):
             feature_importances = self.tfidf_classifier.coef_[0]
             top_indices = np.argsort(feature_importances)[-n:]

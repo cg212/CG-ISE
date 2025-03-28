@@ -22,38 +22,25 @@ except LookupError:
     nltk.download('punkt')
 
 class TextPreprocessor:
-    """
-    A class for preprocessing text data in bug reports with special handling for
-    technical content and code snippets.
-    """
-    
+
     def __init__(self, remove_code=True, keep_tech_terms=True):
-        """
-        Initialize the text preprocessor.
-        
-        Parameters:
-        -----------
-        remove_code : bool
-            Whether to remove code blocks during preprocessing
-        keep_tech_terms : bool
-            Whether to preserve technical terms (don't remove as stopwords)
-        """
+
         self.remove_code = remove_code
         self.keep_tech_terms = keep_tech_terms
         self.lemmatizer = WordNetLemmatizer()
         self.stop_words = set(stopwords.words('english'))
         
-        # Add custom stop words that might be common in bug reports but not informative
+
         self.custom_stop_words = {'error', 'bug', 'issue', 'problem', 'fix',
                                  'please', 'thank', 'thanks', 'help', 'using',
                                  'example', 'code', 'file', 'used', 'following',
                                  'see', 'version', 'get', 'use', 'try', 'tried',
                                  'like', 'run', 'running', 'want', 'need', 'make'}
         
-        # Combine regular stop words with custom ones
+
         self.stop_words = self.stop_words.union(self.custom_stop_words)
         
-        # Technical terms by project that should be preserved
+
         self.tech_terms = {
             "tensorflow": ["tf", "tensor", "graph", "session", "keras", "estimator", 
                           "tpu", "tensorboard", "eager", "gradient", "optimizer", 
@@ -80,7 +67,7 @@ class TextPreprocessor:
                      "deploy", "loss", "accuracy", "gpu", "cpu", "memory", "batch"]
         }
         
-        # Compile regex patterns for code detection
+
         self.code_patterns = {
             'markdown_block': re.compile(r'```[\s\S]*?```'),
             'inline_code': re.compile(r'`.*?`'),
@@ -89,60 +76,24 @@ class TextPreprocessor:
         }
     
     def remove_html(self, text):
-        """
-        Remove HTML tags from text.
-        
-        Parameters:
-        -----------
-        text : str
-            Input text
-            
-        Returns:
-        --------
-        str
-            Text with HTML tags removed
-        """
+
         html_pattern = re.compile(r'<.*?>')
         return html_pattern.sub('', text)
     
     def remove_emojis(self, text):
-        """
-        Remove emojis from text.
-        
-        Parameters:
-        -----------
-        text : str
-            Input text
-            
-        Returns:
-        --------
-        str
-            Text with emojis removed
-        """
+
         emoji_pattern = re.compile("["
-                                   u"\U0001F600-\U0001F64F"  # emoticons
-                                   u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-                                   u"\U0001F680-\U0001F6FF"  # transport & map symbols
-                                   u"\U0001F1E0-\U0001F1FF"  # flags
+                                   u"\U0001F600-\U0001F64F"  
+                                   u"\U0001F300-\U0001F5FF"  
+                                   u"\U0001F680-\U0001F6FF"  
+                                   u"\U0001F1E0-\U0001F1FF"  
                                    u"\U00002702-\U000027B0"
-                                   u"\U000024C2-\U0001F251"  # enclosed characters
+                                   u"\U000024C2-\U0001F251" 
                                    "]+", flags=re.UNICODE)
         return emoji_pattern.sub('', text)
     
     def extract_code_features(self, text):
-        """
-        Extract features related to code presence in the text.
-        
-        Parameters:
-        -----------
-        text : str
-            Input text
-            
-        Returns:
-        --------
-        dict
-            Dictionary of code-related features
-        """
+
         if pd.isna(text) or text is None:
             text = ""
         else:
@@ -150,21 +101,20 @@ class TextPreprocessor:
             
         features = {}
         
-        # Check for code blocks
+
         code_blocks = self.code_patterns['markdown_block'].findall(text)
         features['has_code_block'] = 1 if len(code_blocks) > 0 else 0
         features['num_code_blocks'] = len(code_blocks)
         
-        # Check for inline code
+
         inline_code = self.code_patterns['inline_code'].findall(text)
         features['has_inline_code'] = 1 if len(inline_code) > 0 else 0
         features['num_inline_code'] = len(inline_code)
         
-        # Check for HTML code tags
+
         html_code = self.code_patterns['html_code'].findall(text)
         features['has_html_code'] = 1 if len(html_code) > 0 else 0
-        
-        # Check for stack traces
+
         stack_trace_patterns = [
             r'Traceback \(most recent call last\)',
             r'Exception in thread',
@@ -178,95 +128,65 @@ class TextPreprocessor:
         return features
     
     def preprocess_text(self, text, project=None):
-        """
-        Preprocess text with special handling for code snippets and technical terms.
-        
-        Parameters:
-        -----------
-        text : str
-            Input text
-        project : str, optional
-            Project name for preserving technical terms
-            
-        Returns:
-        --------
-        str
-            Preprocessed text
-        """
+
         if pd.isna(text) or text is None:
             return ""
         
-        # Convert to string
+
         text = str(text)
         
-        # Remove URLs
+
         text = self.code_patterns['url'].sub(' URL ', text)
         
-        # Handle code blocks based on configuration
+
         if self.remove_code:
-            # Replace code blocks with placeholder
+
             text = self.code_patterns['markdown_block'].sub(' CODE_BLOCK ', text)
             text = self.code_patterns['inline_code'].sub(' CODE_SNIPPET ', text)
             text = self.code_patterns['html_code'].sub(' CODE_BLOCK ', text)
         
-        # Remove HTML tags
+
         text = self.remove_html(text)
         
-        # Remove emojis
+
         text = self.remove_emojis(text)
         
-        # Create a set of technical terms to preserve if project is specified
+
         project_tech_terms = set()
         if self.keep_tech_terms and project is not None:
             if project in self.tech_terms:
                 project_tech_terms = set(self.tech_terms[project])
         
-        # Tokenize words (simple split instead of word_tokenize)
+
         tokens = text.lower().split()
         
-        # Remove punctuation, stopwords, and lemmatize
+        # Remove punctuation and stopwords
         processed_tokens = []
         for token in tokens:
-            # Remove punctuation at start and end
+
             token = token.strip(string.punctuation)
             
-            # Skip empty tokens or single characters
+
             if not token or len(token) < 2:
                 continue
                 
-            # Keep technical terms even if they're in stopwords
+
             if token in project_tech_terms:
                 processed_tokens.append(token)
                 continue
                 
-            # Skip stopwords
+
             if token in self.stop_words:
                 continue
                 
-            # Apply lemmatization
+
             lemma = self.lemmatizer.lemmatize(token)
             processed_tokens.append(lemma)
         
         return ' '.join(processed_tokens)
     
     def preprocess_dataframe(self, df, text_columns=None, project=None):
-        """
-        Preprocess text columns in a dataframe.
-        
-        Parameters:
-        -----------
-        df : pd.DataFrame
-            Input dataframe
-        text_columns : list, optional
-            List of text columns to preprocess
-        project : str, optional
-            Project name for preserving technical terms
-            
-        Returns:
-        --------
-        pd.DataFrame
-            Dataframe with preprocessed text columns
-        """
+
         if text_columns is None:
             text_columns = ['Title', 'Body']
         
@@ -292,19 +212,7 @@ class TextPreprocessor:
         return processed_df
     
     def extract_structural_features(self, row):
-        """
-        Extract structural features from a bug report.
-        
-        Parameters:
-        -----------
-        row : pd.Series
-            Row from the dataframe representing a bug report
-            
-        Returns:
-        --------
-        dict
-            Dictionary of structural features
-        """
+
         features = {}
         
         # Extract length-based features
@@ -366,10 +274,10 @@ if __name__ == "__main__":
     Has anyone else encountered this? I'm using CUDA 10.1 and cuDNN 7.6.5.
     """
     
-    # Preprocess the text
+    # preprocessing the text
     processed_text = preprocessor.preprocess_text(text, project="tensorflow")
     print(f"Processed text:\n{processed_text}")
     
-    # Extract code features
+    # extracting code features
     code_features = preprocessor.extract_code_features(text)
     print(f"\nCode features:\n{code_features}")
